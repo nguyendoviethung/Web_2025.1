@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Cửa hàng Sách ABC</title>
+</head>
+<body>
+    <header>
+        <h1>Cửa hàng Sách ABC</h1>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#home">Trang chủ</a></li>
+            <li><a href="#products">Sản phẩm</a></li>
+            <li><a href="#contact">Liên hệ</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="home">
+            <h2>Giới thiệu về cửa hàng</h2>
+            <p>Chào mừng bạn đến với Cửa hàng Sách ABC - nơi cung cấp những đầu sách chất lượng nhất cho mọi lứa tuổi. Chúng tôi tự hào mang đến cho bạn một bộ sưu tập phong phú từ văn học kinh điển đến những tác phẩm hiện đại, từ sách học thuật đến sách giải trí.</p>
+        </section>
+
+        <section id="products">
+            <h2>Danh sách sản phẩm</h2>
+            
+            <!-- Phần tìm kiếm -->
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="searchInput" placeholder="Tìm kiếm sản phẩm...">
+                <button id="searchBtn">Tìm</button>
+            </div>
+            
+            <!-- Nút thêm sản phẩm -->
+            <button id="addProductBtn">Thêm sản phẩm</button>
+            
+            <!-- Form thêm sản phẩm (ẩn mặc định) -->
+            <form id="addProductForm" class="hidden" style="margin: 20px 0; padding: 15px; border: 1px solid #ccc; background: #f9f9f9;">
+                <h3>Thêm sản phẩm mới</h3>
+                <label for="productName">Tên sản phẩm:</label>
+                <input type="text" id="productName" required>
+                
+                <label for="productDesc">Mô tả:</label>
+                <textarea id="productDesc" rows="3" required></textarea>
+                
+                <label for="productPrice">Giá:</label>
+                <input type="text" id="productPrice" placeholder="VD: 100.000đ" required>
+                
+                <button type="submit">Lưu</button>
+                <button type="button" id="cancelBtn">Hủy</button>
+            </form>
+            
+            <div class="product-list">
+                <article class="product-item">
+                    <h3 class="product-name">Đắc Nhân Tâm</h3>
+                    <p>Cuốn sách kinh điển về nghệ thuật giao tiếp và ứng xử của Dale Carnegie.</p>
+                    <p>Giá: 85.000đ</p>
+                </article>
+
+                <article class="product-item">
+                    <h3 class="product-name">Nhà Giả Kim</h3>
+                    <p>Tác phẩm nổi tiếng của Paulo Coelho về hành trình tìm kiếm ước mơ.</p>
+                    <p>Giá: 79.000đ</p>
+                </article>
+
+                <article class="product-item">
+                    <h3 class="product-name">Sapiens</h3>
+                    <p>Lược sử loài người của Yuval Noah Harari - cuốn sách bán chạy toàn cầu.</p>
+                    <p>Giá: 189.000đ</p>
+                </article>
+            </div>
+        </section>
+
+        <section id="contact">
+            <h2>Form đăng ký liên hệ</h2>
+            <form>
+                <label for="name">Tên *</label>
+                <input type="text" id="name" name="name" placeholder="Nhập tên của bạn" required>
+
+                <label for="email">Email *</label>
+                <input type="email" id="email" name="email" placeholder="Nhập email của bạn" required>
+
+                <label for="phone">Số điện thoại</label>
+                <input type="text" id="phone" name="phone" placeholder="Nhập số điện thoại">
+
+                <label for="message">Tin nhắn</label>
+                <textarea id="message" name="message" rows="5" placeholder="Nhập tin nhắn của bạn..."></textarea>
+
+                <button type="submit">Gửi</button>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <p>Tên cửa hàng: Cửa hàng Sách ABC</p>
+        <p>Địa chỉ: 123 Đường Sách, Quận 1, TP.HCM</p>
+        <p>Bản quyền © 2025</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
