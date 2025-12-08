@@ -1,63 +1,120 @@
-/*
-Bài toán: Tìm số nguyên từ 0 đến 31 sao cho hàm fitness = x² lớn nhất.
-Cách làm:
-1.Mỗi cá thể biểu diễn bằng 5 bit nhị phân (0 → 31).
-2.Sử dụng: Tournament Selection, Single-Point Crossover, Bit-Flip Mutation.
-3.Thế hệ mới hoàn toàn (Generational GA). 
-*/
+// Genetic Algorithm - tối đa hoá f(x) = x^2
+// Mỗi cá thể: binary string length = chromLength
+// Selection: Tournament Selection
+// Crossover: Single-point
+// Mutation: Bit-flip
+// Replacement: Generational (toàn bộ thế hệ mới thay thế cũ)
 
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+function randInt(max) { return Math.floor(Math.random() * max); }
+
+function randProb() { return Math.random(); }
+
+// --- parameters ---
+const popSize = 20;
+const chromLength = 5; // 5 bits => 0..31
+const generations = 60;
+const tournamentSize = 3;
+const crossoverRate = 0.9;
+const mutationRate = 0.02;
+
+// --- utility: random chromosome ---
+function randomChrom() {
+  let bits = [];
+  for (let i = 0; i < chromLength; i++) bits.push(Math.random() < 0.5 ? '0' : '1');
+  return bits.join('');
 }
 
-function fitness(x) {
+// decode binary string -> integer
+function decode(chrom) {
+  return parseInt(chrom, 2);
+}
+
+// fitness function: maximize x^2
+function fitness(chrom) {
+  const x = decode(chrom);
   return x * x;
 }
 
-function randomIndividual(bitLength = 5) {
-  let ind = [];
-  for (let i = 0; i < bitLength; i++) ind.push(Math.random() < 0.5 ? 0 : 1);
-  return ind;
+// create initial population
+function initPopulation() {
+  const pop = [];
+  for (let i = 0; i < popSize; i++) pop.push({ chrom: randomChrom(), fitness: 0 });
+  return pop;
 }
 
-function decode(individual) {
-  return individual.reduce((sum, bit, i) => sum + bit * Math.pow(2, individual.length - 1 - i), 0);
+// evaluate population (set fitness)
+function evaluate(pop) {
+  for (const ind of pop) ind.fitness = fitness(ind.chrom);
 }
 
-function tournamentSelection(pop, k = 2) {
-  let sample = [];
-  for (let i = 0; i < k; i++) sample.push(pop[randomInt(0, pop.length - 1)]);
-  sample.sort((a, b) => fitness(decode(b)) - fitness(decode(a)));
-  return sample[0];
-}
-
-function crossover(p1, p2) {
-  let point = randomInt(1, p1.length - 1);
-  let c1 = p1.slice(0, point).concat(p2.slice(point));
-  let c2 = p2.slice(0, point).concat(p1.slice(point));
-  return [c1, c2];
-}
-
-function mutate(ind, pm = 0.1) {
-  return ind.map(bit => (Math.random() < pm ? 1 - bit : bit));
-}
-
-const POP_SIZE = 6;
-const GEN = 10;
-
-let population = [];
-for (let i = 0; i < POP_SIZE; i++) population.push(randomIndividual());
-
-for (let g = 0; g < GEN; g++) {
-  let newPopulation = [];
-  while (newPopulation.length < POP_SIZE) {
-    let p1 = tournamentSelection(population);
-    let p2 = tournamentSelection(population);
-    let [c1, c2] = crossover(p1, p2);
-    newPopulation.push(mutate(c1));
-    if (newPopulation.length < POP_SIZE) newPopulation.push(mutate(c2));
+// tournament selection: pick best of k random individuals (with replacement)
+function tournamentSelect(pop) {
+  let best = null;
+  for (let i = 0; i < tournamentSize; i++) {
+    const candidate = pop[randInt(pop.length)];
+    if (best === null || candidate.fitness > best.fitness) best = candidate;
   }
-  population = newPopulation;
-  let best = population.reduce((a, b) => (fitness(decode(a)) > fitness(decode(b)) ? a : b));
-  console.log(`Gen ${g + 1}: Best x = ${decode(best)}, Fitness = ${fitness(decode(best))}`);
+  // return a copy of the chromosome string
+  return best.chrom;
 }
+
+// single-point crossover
+function crossover(parent1, parent2) {
+  if (randProb() > crossoverRate) return [parent1, parent2]; // no crossover
+  const point = 1 + randInt(chromLength - 1); // crossover point in [1, chromLength-1]
+  const child1 = parent1.slice(0, point) + parent2.slice(point);
+  const child2 = parent2.slice(0, point) + parent1.slice(point);
+  return [child1, child2];
+}
+
+// bit-flip mutation
+function mutate(chrom) {
+  let arr = chrom.split('');
+  for (let i = 0; i < arr.length; i++) {
+    if (randProb() < mutationRate) arr[i] = arr[i] === '0' ? '1' : '0';
+  }
+  return arr.join('');
+}
+
+// run GA
+function runGA() {
+  let population = initPopulation();
+  evaluate(population);
+
+  for (let gen = 0; gen < generations; gen++) {
+    // record stats
+    const best = population.reduce((a, b) => (a.fitness >= b.fitness ? a : b));
+    const avg = population.reduce((s, ind) => s + ind.fitness, 0) / population.length;
+    console.log(`Gen ${gen} | best x=${decode(best.chrom)} chrom=${best.chrom} fitness=${best.fitness} | avg=${avg.toFixed(2)}`);
+
+    // create new population
+    const newPop = [];
+    while (newPop.length < popSize) {
+      // selection
+      const p1 = tournamentSelect(population);
+      const p2 = tournamentSelect(population);
+
+      // crossover
+      const [c1, c2] = crossover(p1, p2);
+
+      // mutate and push
+      newPop.push({ chrom: mutate(c1), fitness: 0 });
+      if (newPop.length < popSize) newPop.push({ chrom: mutate(c2), fitness: 0 });
+    }
+
+    population = newPop;
+    evaluate(population);
+  }
+
+  // final best
+  const best = population.reduce((a, b) => (a.fitness >= b.fitness ? a : b));
+  console.log('--- DONE ---');
+  console.log(`Best found: x=${decode(best.chrom)} chrom=${best.chrom} fitness=${best.fitness}`);
+  return best;
+}
+
+// if (typeof module !== 'undefined' && require && typeof require.main !== 'undefined' && require.main === module) {
+//   runGA();
+// }
+
+ runGA();
