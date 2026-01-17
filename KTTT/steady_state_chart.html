@@ -1,0 +1,2191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JCAS Steady-State GA - Multibeam Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            padding: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 32px;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        button {
+            padding: 14px 28px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        #vizContainer {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            border-radius: 12px;
+        }
+        
+        canvas {
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin: 40px 0;
+            padding: 25px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 26px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .info p {
+            margin: 8px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .info strong {
+            color: #667eea;
+        }
+        
+        #loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 20px;
+            color: #667eea;
+            display: none;
+            background: white;
+            border-radius: 12px;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card .label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .value {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 JCAS Steady-State GA - Multibeam Optimization Dashboard</h1>
+    
+    <div class="controls">
+        <button onclick="runSSGAOptimization()">▶️ Run Steady-State GA</button>
+        <button onclick="runStandardGAComparison()" class="secondary">📊 Compare with Standard GA</button>
+        <button onclick="clearAll()">🗑️ Clear All</button>
+    </div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p><strong>Running Steady-State Genetic Algorithm...</strong></p>
+        <p>Optimizing multibeam patterns for JCAS system</p>
+    </div>
+    
+    <div id="vizContainer">
+        <p style="text-align: center; color: #999; padding: 50px;">
+            Click "Run Steady-State GA" to start optimization and generate visualizations
+        </p>
+    </div>
+
+    <script>
+        // ============= COMPLEX NUMBER CLASS =============
+        class Complex {
+            constructor(real, imag = 0) {
+                this.real = real;
+                this.imag = imag;
+            }
+            
+            add(c) {
+                return new Complex(this.real + c.real, this.imag + c.imag);
+            }
+            
+            multiply(c) {
+                return new Complex(
+                    this.real * c.real - this.imag * c.imag,
+                    this.real * c.imag + this.imag * c.real
+                );
+            }
+            
+            conjugate() {
+                return new Complex(this.real, -this.imag);
+            }
+            
+            magnitude() {
+                return Math.sqrt(this.real * this.real + this.imag * this.imag);
+            }
+            
+            phase() {
+                return Math.atan2(this.imag, this.real);
+            }
+            
+            static fromPolar(magnitude, phase) {
+                return new Complex(
+                    magnitude * Math.cos(phase),
+                    magnitude * Math.sin(phase)
+                );
+            }
+        }
+
+        // ============= STEADY-STATE GA FOR JCAS =============
+        class JCASMultibeamSSGA {
+            constructor(config) {
+                this.M = config.M || 16;
+                this.fc = config.fc || 24e9;
+                this.lambda = 3e8 / this.fc;
+                
+                this.commDirection = config.commDirection || 0;
+                this.sensingDirections = config.sensingDirections || 
+                    [-54.3, -37.8, -24.4, -12.3, 10.8, 22.8, 35.9, 51.9];
+                this.rho = config.rho || 0.5;
+                
+                // SSGA parameters
+                this.populationSize = config.populationSize || 80;
+                this.maxEvaluations = config.maxEvaluations || 8000;
+                this.offspringSize = config.offspringSize || 2;
+                this.mutationRate = config.mutationRate || 0.12;
+                this.crossoverRate = config.crossoverRate || 0.85;
+                this.tournamentSize = config.tournamentSize || 3;
+                
+                this.K = 361; // -180 to 180 degrees
+                this.angles = this.generateAngles();
+                
+                this.evaluationCount = 0;
+                this.fitnessHistory = [];
+                this.diversityHistory = [];
+            }
+            
+            generateAngles() {
+                const angles = [];
+                for (let i = 0; i < this.K; i++) {
+                    angles.push(-180 + i);
+                }
+                return angles;
+            }
+            
+            arrayResponse(theta) {
+                const a = [];
+                const thetaRad = theta * Math.PI / 180;
+                for (let m = 0; m < this.M; m++) {
+                    const phase = Math.PI * m * Math.sin(thetaRad);
+                    a.push(Complex.fromPolar(1, phase));
+                }
+                return a;
+            }
+            
+            createIndividual() {
+                return {
+                    commWeights: this.randomWeights(),
+                    sensingWeights: this.randomWeights(),
+                    fitness: null,
+                    age: 0
+                };
+            }
+            
+            randomWeights() {
+                const weights = [];
+                for (let m = 0; m < this.M; m++) {
+                    const magnitude = 0.7 + Math.random() * 0.6;
+                    const phase = Math.random() * 2 * Math.PI;
+                    weights.push(Complex.fromPolar(magnitude, phase));
+                }
+                return this.normalizeWeights(weights);
+            }
+            
+            normalizeWeights(weights) {
+                let sumPower = 0;
+                for (let w of weights) {
+                    sumPower += w.magnitude() * w.magnitude();
+                }
+                const norm = Math.sqrt(sumPower);
+                return weights.map(w => new Complex(w.real / norm, w.imag / norm));
+            }
+            
+            fitness(individual, sensingAngle) {
+                if (individual.fitness !== null) {
+                    return individual.fitness;
+                }
+                
+                this.evaluationCount++;
+                
+                let totalError = 0;
+                let commGain = 0;
+                let sensingGain = 0;
+                
+                // Sample key angles for fitness evaluation
+                const sampleAngles = [];
+                for (let angle = -90; angle <= 90; angle += 3) {
+                    sampleAngles.push(angle);
+                }
+                
+                for (let angle of sampleAngles) {
+                    const a = this.arrayResponse(angle);
+                    
+                    let commResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        commResponse = commResponse.add(
+                            a[m].multiply(individual.commWeights[m].conjugate())
+                        );
+                    }
+                    
+                    let sensingResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        sensingResponse = sensingResponse.add(
+                            a[m].multiply(individual.sensingWeights[m].conjugate())
+                        );
+                    }
+                    
+                    // Desired response
+                    let commDesired = 0;
+                    let sensingDesired = 0;
+                    
+                    if (Math.abs(angle - this.commDirection) < 15) {
+                        commDesired = 1.0;
+                    }
+                    if (Math.abs(angle - sensingAngle) < 15) {
+                        sensingDesired = 1.0;
+                    }
+                    
+                    // Track gains at target directions
+                    if (Math.abs(angle - this.commDirection) < 2) {
+                        commGain = commResponse.magnitude();
+                    }
+                    if (Math.abs(angle - sensingAngle) < 2) {
+                        sensingGain = sensingResponse.magnitude();
+                    }
+                    
+                    // Combined response
+                    const combined = new Complex(
+                        Math.sqrt(this.rho) * commResponse.real + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.real,
+                        Math.sqrt(this.rho) * commResponse.imag + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.imag
+                    );
+                    
+                    const desired = Math.sqrt(this.rho) * commDesired + 
+                                   Math.sqrt(1 - this.rho) * sensingDesired;
+                    
+                    const error = combined.magnitude() - desired;
+                    totalError += error * error;
+                }
+                
+                // Multi-objective fitness
+                const mse = totalError / sampleAngles.length;
+                const fitnessValue = -mse + 5 * (commGain + sensingGain);
+                
+                individual.fitness = fitnessValue;
+                return fitnessValue;
+            }
+            
+            tournamentSelection(population, fitnesses) {
+                let best = null;
+                let bestFitness = -Infinity;
+                
+                for (let i = 0; i < this.tournamentSize; i++) {
+                    const idx = Math.floor(Math.random() * population.length);
+                    if (fitnesses[idx] > bestFitness) {
+                        bestFitness = fitnesses[idx];
+                        best = idx;
+                    }
+                }
+                
+                return population[best];
+            }
+            
+            crossover(parent1, parent2) {
+                if (Math.random() > this.crossoverRate) {
+                    return [this.cloneIndividual(parent1), this.cloneIndividual(parent2)];
+                }
+                
+                const child1 = this.createIndividual();
+                const child2 = this.createIndividual();
+                
+                child1.commWeights = [];
+                child1.sensingWeights = [];
+                child2.commWeights = [];
+                child2.sensingWeights = [];
+                
+                // Uniform crossover
+                for (let m = 0; m < this.M; m++) {
+                    if (Math.random() < 0.5) {
+                        child1.commWeights.push(new Complex(parent1.commWeights[m].real, parent1.commWeights[m].imag));
+                        child2.commWeights.push(new Complex(parent2.commWeights[m].real, parent2.commWeights[m].imag));
+                    } else {
+                        child1.commWeights.push(new Complex(parent2.commWeights[m].real, parent2.commWeights[m].imag));
+                        child2.commWeights.push(new Complex(parent1.commWeights[m].real, parent1.commWeights[m].imag));
+                    }
+                    
+                    if (Math.random() < 0.5) {
+                        child1.sensingWeights.push(new Complex(parent1.sensingWeights[m].real, parent1.sensingWeights[m].imag));
+                        child2.sensingWeights.push(new Complex(parent2.sensingWeights[m].real, parent2.sensingWeights[m].imag));
+                    } else {
+                        child1.sensingWeights.push(new Complex(parent2.sensingWeights[m].real, parent2.sensingWeights[m].imag));
+                        child2.sensingWeights.push(new Complex(parent1.sensingWeights[m].real, parent1.sensingWeights[m].imag));
+                    }
+                }
+                
+                child1.commWeights = this.normalizeWeights(child1.commWeights);
+                child1.sensingWeights = this.normalizeWeights(child1.sensingWeights);
+                child2.commWeights = this.normalizeWeights(child2.commWeights);
+                child2.sensingWeights = this.normalizeWeights(child2.sensingWeights);
+                
+                return [child1, child2];
+            }
+            
+            mutate(individual) {
+                const mutated = this.cloneIndividual(individual);
+                
+                for (let m = 0; m < this.M; m++) {
+                    if (Math.random() < this.mutationRate) {
+                        const sigma = 0.15;
+                        const deltaMag = this.gaussianRandom(0, sigma);
+                        const deltaPhase = this.gaussianRandom(0, Math.PI / 4);
+                        
+                        const oldMag = mutated.commWeights[m].magnitude();
+                        const oldPhase = mutated.commWeights[m].phase();
+                        
+                        mutated.commWeights[m] = Complex.fromPolar(
+                            Math.max(0.1, Math.min(2, oldMag + deltaMag)),
+                            oldPhase + deltaPhase
+                        );
+                    }
+                    
+                    if (Math.random() < this.mutationRate) {
+                        const sigma = 0.15;
+                        const deltaMag = this.gaussianRandom(0, sigma);
+                        const deltaPhase = this.gaussianRandom(0, Math.PI / 4);
+                        
+                        const oldMag = mutated.sensingWeights[m].magnitude();
+                        const oldPhase = mutated.sensingWeights[m].phase();
+                        
+                        mutated.sensingWeights[m] = Complex.fromPolar(
+                            Math.max(0.1, Math.min(2, oldMag + deltaMag)),
+                            oldPhase + deltaPhase
+                        );
+                    }
+                }
+                
+                mutated.commWeights = this.normalizeWeights(mutated.commWeights);
+                mutated.sensingWeights = this.normalizeWeights(mutated.sensingWeights);
+                mutated.fitness = null;
+                
+                return mutated;
+            }
+            
+            gaussianRandom(mean = 0, stdDev = 1) {
+                const u1 = Math.random();
+                const u2 = Math.random();
+                const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+                return mean + stdDev * z0;
+            }
+            
+            cloneIndividual(individual) {
+                return {
+                    commWeights: individual.commWeights.map(w => new Complex(w.real, w.imag)),
+                    sensingWeights: individual.sensingWeights.map(w => new Complex(w.real, w.imag)),
+                    fitness: individual.fitness,
+                    age: individual.age
+                };
+            }
+            
+            calculateDiversity(population) {
+                let totalDistance = 0;
+                let count = 0;
+                
+                const sampleSize = Math.min(20, population.length);
+                
+                for (let i = 0; i < sampleSize; i++) {
+                    for (let j = i + 1; j < sampleSize; j++) {
+                        let distance = 0;
+                        
+                        for (let m = 0; m < this.M; m++) {
+                            const diff1 = population[i].commWeights[m].magnitude() - 
+                                         population[j].commWeights[m].magnitude();
+                            const diff2 = population[i].sensingWeights[m].magnitude() - 
+                                         population[j].sensingWeights[m].magnitude();
+                            distance += diff1 * diff1 + diff2 * diff2;
+                        }
+                        
+                        totalDistance += Math.sqrt(distance);
+                        count++;
+                    }
+                }
+                
+                return count > 0 ? totalDistance / count : 0;
+            }
+            
+            replaceWorst(population, fitnesses, offspring) {
+                const sortedIndices = fitnesses
+                    .map((fitness, idx) => ({fitness, idx}))
+                    .sort((a, b) => a.fitness - b.fitness);
+                
+                for (let i = 0; i < offspring.length && i < sortedIndices.length; i++) {
+                    population[sortedIndices[i].idx] = offspring[i];
+                    fitnesses[sortedIndices[i].idx] = null;
+                }
+            }
+            
+            optimize(sensingAngle, progressCallback = null) {
+                console.log(`Starting SSGA optimization for sensing angle: ${sensingAngle}°`);
+                
+                let population = [];
+                for (let i = 0; i < this.populationSize; i++) {
+                    population.push(this.createIndividual());
+                }
+                
+                let fitnesses = new Array(this.populationSize).fill(null);
+                
+                // Evaluate initial population
+                for (let i = 0; i < this.populationSize; i++) {
+                    fitnesses[i] = this.fitness(population[i], sensingAngle);
+                }
+                
+                let bestIndividual = null;
+                let bestFitness = -Infinity;
+                let generation = 0;
+                
+                // Find initial best
+                for (let i = 0; i < population.length; i++) {
+                    if (fitnesses[i] > bestFitness) {
+                        bestFitness = fitnesses[i];
+                        bestIndividual = this.cloneIndividual(population[i]);
+                    }
+                }
+                
+                // SSGA main loop
+                while (this.evaluationCount < this.maxEvaluations) {
+                    generation++;
+                    
+                    // Generate offspring
+                    const offspring = [];
+                    for (let i = 0; i < this.offspringSize / 2; i++) {
+                        const parent1 = this.tournamentSelection(population, fitnesses);
+                        const parent2 = this.tournamentSelection(population, fitnesses);
+                        
+                        const [child1, child2] = this.crossover(parent1, parent2);
+                        
+                        offspring.push(this.mutate(child1));
+                        if (offspring.length < this.offspringSize) {
+                            offspring.push(this.mutate(child2));
+                        }
+                    }
+                    
+                    // Evaluate offspring
+                    for (let child of offspring) {
+                        this.fitness(child, sensingAngle);
+                    }
+                    
+                    // Replace worst
+                    this.replaceWorst(population, fitnesses, offspring);
+                    
+                    // Re-evaluate
+                    for (let i = 0; i < population.length; i++) {
+                        if (fitnesses[i] === null) {
+                            fitnesses[i] = this.fitness(population[i], sensingAngle);
+                        }
+                    }
+                    
+                    // Update age
+                    for (let ind of population) {
+                        ind.age++;
+                    }
+                    
+                    // Track best
+                    const currentBestFitness = Math.max(...fitnesses);
+                    const currentBestIdx = fitnesses.indexOf(currentBestFitness);
+                    
+                    if (currentBestFitness > bestFitness) {
+                        bestFitness = currentBestFitness;
+                        bestIndividual = this.cloneIndividual(population[currentBestIdx]);
+                    }
+                    
+                    // Statistics
+                    if (generation % 50 === 0) {
+                        const avgFitness = fitnesses.reduce((a, b) => a + b) / fitnesses.length;
+                        const diversity = this.calculateDiversity(population);
+                        
+                        this.fitnessHistory.push({
+                            generation,
+                            evaluations: this.evaluationCount,
+                            best: bestFitness,
+                            avg: avgFitness,
+                            diversity
+                        });
+                        
+                        if (progressCallback) {
+                            progressCallback({
+                                generation,
+                                evaluations: this.evaluationCount,
+                                bestFitness,
+                                avgFitness,
+                                diversity
+                            });
+                        }
+                    }
+                }
+                
+                return {
+                    individual: bestIndividual,
+                    fitness: bestFitness,
+                    statistics: {
+                        generations: generation,
+                        evaluations: this.evaluationCount,
+                        fitnessHistory: this.fitnessHistory
+                    }
+                };
+            }
+            
+            getMultibeamPattern(individual, sensingAngle) {
+                const pattern = [];
+                
+                for (let angle of this.angles) {
+                    const a = this.arrayResponse(angle);
+                    
+                    let commResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        commResponse = commResponse.add(
+                            a[m].multiply(individual.commWeights[m].conjugate())
+                        );
+                    }
+                    
+                    let sensingResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        sensingResponse = sensingResponse.add(
+                            a[m].multiply(individual.sensingWeights[m].conjugate())
+                        );
+                    }
+                    
+                    const combined = new Complex(
+                        Math.sqrt(this.rho) * commResponse.real + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.real,
+                        Math.sqrt(this.rho) * commResponse.imag + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.imag
+                    );
+                    
+                    pattern.push({
+                        angle: angle,
+                        magnitude: combined.magnitude(),
+                        magnitudeDB: 20 * Math.log10(combined.magnitude() + 1e-10)
+                    });
+                }
+                
+                return pattern;
+            }
+            
+            optimizeAllSensingDirections(progressCallback = null) {
+                const results = [];
+                
+                for (let i = 0; i < this.sensingDirections.length; i++) {
+                    const sensingAngle = this.sensingDirections[i];
+                    
+                    // Reset for each direction
+                    this.evaluationCount = 0;
+                    this.fitnessHistory = [];
+                    
+                    console.log(`\nOptimizing ${i + 1}/${this.sensingDirections.length}: Sensing angle ${sensingAngle}°`);
+                    
+                    const result = this.optimize(sensingAngle, (progress) => {
+                        if (progressCallback) {
+                            progressCallback({
+                                ...progress,
+                                currentDirection: i + 1,
+                                totalDirections: this.sensingDirections.length,
+                                sensingAngle
+                            });
+                        }
+                    });
+                    
+                    const pattern = this.getMultibeamPattern(result.individual, sensingAngle);
+                    
+                    results.push({
+                        sensingAngle,
+                        individual: result.individual,
+                        pattern,
+                        fitness: result.fitness,
+                        statistics: result.statistics
+                    });
+                }
+                
+                return results;
+            }
+        }
+
+        // ============= VISUALIZATION CLASS =============
+        class SSGAVisualization {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+            }
+
+            createStatsCards(results) {
+                const section = document.createElement('div');
+                section.className = 'section';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = '📊 Optimization Statistics';
+                section.appendChild(heading);
+                
+                const statsGrid = document.createElement('div');
+                statsGrid.className = 'stats-grid';
+                
+                // Calculate aggregate stats
+                const totalEvals = results.reduce((sum, r) => sum + r.statistics.evaluations, 0);
+                const avgFitness = results.reduce((sum, r) => sum + r.fitness, 0) / results.length;
+                const bestFitness = Math.max(...results.map(r => r.fitness));
+                
+                const stats = [
+                    { label: 'Total Evaluations', value: totalEvals.toLocaleString() },
+                    { label: 'Avg Best Fitness', value: avgFitness.toFixed(3) },
+                    { label: 'Best Fitness', value: bestFitness.toFixed(3) },
+                    { label: 'Sensing Directions', value: results.length }
+                ];
+                
+                stats.forEach(stat => {
+                    const card = document.createElement('div');
+                    card.className = 'stat-card';
+                    card.innerHTML = `
+                        <div class="label">${stat.label}</div>
+                        <div class="value">${stat.value}</div>
+                    `;
+                    statsGrid.appendChild(card);
+                });
+                
+                section.appendChild(statsGrid);
+                this.container.appendChild(section);
+            }
+
+            createMultibeamComparisonPlot(results) {
+                const section = document.createElement('div');
+                section.className = 'section';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = '📡 Eight Combined Multibeam Patterns (Steady-State GA)';
+                section.appendChild(heading);
+                
+                const info = document.createElement('div');
+                info.className = 'info';
+                info.innerHTML = `
+                    <p><strong>Algorithm:</strong> Steady-State Genetic Algorithm</p>
+                    <p><strong>Communication Direction:</strong> 0°</p>
+                    <p><strong>Sensing Directions:</strong> ${results.map(r => r.sensingAngle + '°').join(', ')}</p>
+                    <p><strong>Power Allocation (ρ):</strong> 0.5 (50% communication, 50% sensing)</p>
+                    <p><strong>Array Configuration:</strong> 16-element ULA, λ/2 spacing</p>
+                `;
+                section.appendChild(info);
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 1000;
+                canvas.height = 500;
+                section.appendChild(canvas);
+                
+                this.container.appendChild(section);
+
+                const ctx = canvas.getContext('2d');
+                const padding = 70;
+                const plotWidth = canvas.width - 2 * padding;
+                const plotHeight = canvas.height - 2 * padding;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw axes
+                this.drawCartesianAxes(ctx, padding, plotWidth, plotHeight, 
+                    -90, 90, -35, 10);
+
+                // Colors
+                const colors = [
+                    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+                    '#9467bd', '#8c564b', '#e377c2', '#bcbd22'
+                ];
+
+                // Draw all patterns
+                results.forEach((result, idx) => {
+                    this.plotMultibeamPattern(
+                        ctx, padding, plotWidth, plotHeight,
+                        result.pattern, 
+                        colors[idx % colors.length],
+                        2.5
+                    );
+                    
+                    this.markSensingDirection(
+                        ctx, padding, plotWidth, plotHeight,
+                        result.sensingAngle, result.pattern
+                    );
+                });
+
+                // Title
+                ctx.font = 'bold 18px Arial';
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.fillText('Optimized Multibeam Radiation Patterns', canvas.width / 2, 35);
+
+                // Axis labels
+                ctx.font = '14px Arial';
+                ctx.fillText('Scan direction in Degrees', canvas.width / 2, canvas.height - 20);
+                
+                ctx.save();
+                ctx.translate(25, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('Beam gain (dB)', 0, 0);
+                ctx.restore();
+
+                // Legend
+                this.drawLegend(ctx, canvas.width - 200, 70, results, colors);
+            }
+
+            plotMultibeamPattern(ctx, padding, width, height, pattern, color, lineWidth) {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+
+                const filteredPattern = pattern.filter(p => p.angle >= -90 && p.angle <= 90);
+
+                filteredPattern.forEach((point, idx) => {
+                    const x = padding + ((point.angle + 90) / 180) * width;
+                    const y = padding + height - ((point.magnitudeDB + 35) / 45) * height;
+
+                    if (idx === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+            }
+
+            markSensingDirection(ctx, padding, width, height, sensingAngle, pattern) {
+                const point = pattern.find(p => Math.abs(p.angle - sensingAngle) < 0.5);
+                if (!point) return;
+
+                const x = padding + ((sensingAngle + 90) / 180) * width;
+                const y = padding + height - ((point.magnitudeDB + 35) / 45) * height;
+
+                ctx.strokeStyle = '#d62728';
+                ctx.fillStyle = 'rgba(214, 39, 40, 0.3)';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(x, y, 7, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            drawCartesianAxes(ctx, padding, width, height, xMin, xMax, yMin, yMax) {
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(padding, padding, width, height);
+
+                ctx.strokeStyle = '#ddd';
+                ctx.lineWidth = 1;
+
+                for (let x = xMin; x <= xMax; x += 30) {
+                    const px = padding + ((x - xMin) / (xMax - xMin)) * width;
+                    ctx.beginPath();
+                    ctx.moveTo(px, padding);
+                    ctx.lineTo(px, padding + height);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#333';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(x.toString(), px, padding + height + 20);
+                }
+
+                for (let y = yMin; y <= yMax; y += 10) {
+                    const py = padding + height - ((y - yMin) / (yMax - yMin)) * height;
+                    ctx.beginPath();
+                    ctx.moveTo(padding, py);
+                    ctx.lineTo(padding + width, py);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#333';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(y.toString(), padding - 10, py + 4);
+                }
+            }
+
+            drawLegend(ctx, x, y, results, colors) {
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'left';
+
+                // Background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(x - 10, y - 10, 180, results.length * 22 + 20);
+                ctx.strokeStyle = '#ccc';
+                ctx.strokeRect(x - 10, y - 10, 180, results.length * 22 + 20);
+
+                results.forEach((result, idx) => {
+                    const yPos = y + idx * 22;
+
+                    ctx.strokeStyle = colors[idx % colors.length];
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(x, yPos);
+                    ctx.lineTo(x + 25, yPos);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#333';
+                    ctx.fillText(`θ = ${result.sensingAngle}° (f=${result.fitness.toFixed(2)})`, x + 30, yPos + 4);
+                });
+            }
+
+            createConvergencePlot(results) {
+                const section = document.createElement('div');
+                section.className = 'section';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = '📈 Convergence Curves - All Sensing Directions';
+                section.appendChild(heading);
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 1000;
+                canvas.height = 500;
+                section.appendChild(canvas);
+                
+                this.container.appendChild(section);
+
+                const ctx = canvas.getContext('2d');
+                const padding = 70;
+                const plotWidth = canvas.width - 2 * padding;
+                const plotHeight = canvas.height - 2 * padding;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Find ranges
+                const allFitness = results.flatMap(r => 
+                    r.statistics.fitnessHistory.map(h => h.best)
+                );
+                const maxFit = Math.max(...allFitness);
+                const minFit = Math.min(...allFitness);
+                const maxEval = Math.max(...results.map(r => 
+                    Math.max(...r.statistics.fitnessHistory.map(h => h.evaluations))
+                ));
+
+                // Draw axes
+                this.drawCartesianAxes(ctx, padding, plotWidth, plotHeight, 
+                    0, maxEval, Math.floor(minFit), Math.ceil(maxFit));
+
+                // Colors
+                const colors = [
+                    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+                    '#9467bd', '#8c564b', '#e377c2', '#bcbd22'
+                ];
+
+                // Plot convergence for each direction
+                results.forEach((result, idx) => {
+                    const history = result.statistics.fitnessHistory;
+                    const evaluations = history.map(h => h.evaluations);
+                    const bestFitness = history.map(h => h.best);
+
+                    this.plotLine(ctx, padding, plotWidth, plotHeight,
+                        evaluations, bestFitness, maxEval, minFit, maxFit,
+                        colors[idx % colors.length], 2);
+                });
+
+                // Title
+                ctx.font = 'bold 18px Arial';
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.fillText('SSGA Convergence - Best Fitness vs Evaluations', canvas.width / 2, 35);
+
+                // Axis labels
+                ctx.font = '14px Arial';
+                ctx.fillText('Function Evaluations', canvas.width / 2, canvas.height - 20);
+                
+                ctx.save();
+                ctx.translate(25, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('Best Fitness', 0, 0);
+                ctx.restore();
+            }
+
+            plotLine(ctx, padding, width, height, xData, yData, maxX, minY, maxY, color, lineWidth) {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+
+                xData.forEach((x, idx) => {
+                    const px = padding + (x / maxX) * width;
+                    const py = padding + height - ((yData[idx] - minY) / (maxY - minY)) * height;
+
+                    if (idx === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                });
+                ctx.stroke();
+            }
+
+            clearAll() {
+                this.container.innerHTML = '<p style="text-align: center; color: #999; padding: 50px;">Click "Run Steady-State GA" to start optimization</p>';
+            }
+        }
+
+        // ============= MAIN EXECUTION =============
+        
+        const viz = new SSGAVisualization('vizContainer');
+        
+        function runSSGAOptimization() {
+            document.getElementById('loading').style.display = 'block';
+            viz.clearAll();
+            
+            setTimeout(() => {
+                try {
+                    console.log("Starting SSGA Multibeam Optimization...");
+                    
+                    const config = {
+                        M: 16,
+                        fc: 24e9,
+                        commDirection: 0,
+                        sensingDirections: [-54.3, -37.8, -24.4, -12.3, 10.8, 22.8, 35.9, 51.9],
+                        rho: 0.5,
+                        populationSize: 80,
+                        maxEvaluations: 8000,
+                        offspringSize: 2,
+                        mutationRate: 0.12,
+                        crossoverRate: 0.85
+                    };
+                    
+                    const optimizer = new JCASMultibeamSSGA(config);
+                    
+                    const results = optimizer.optimizeAllSensingDirections((progress) => {
+                        console.log(`Direction ${progress.currentDirection}/${progress.totalDirections} | ` +
+                                   `Gen ${progress.generation} | Evals ${progress.evaluations} | ` +
+                                   `Best: ${progress.bestFitness.toFixed(4)}`);
+                    });
+                    
+                    console.log("\n✅ Optimization complete! Generating visualizations...");
+                    
+                    // Create visualizations
+                    viz.createStatsCards(results);
+                    viz.createMultibeamComparisonPlot(results);
+                    viz.createConvergencePlot(results);
+                    
+                    console.log("✅ All visualizations generated successfully!");
+                    
+                } catch (error) {
+                    console.error("Error:", error);
+                    viz.container.innerHTML = `
+                        <div style="color: red; padding: 40px; text-align: center;">
+                            <h3>❌ Error occurred</h3>
+                            <p>${error.message}</p>
+                            <pre style="text-align: left; background: #f5f5f5; padding: 15px; border-radius: 4px; overflow: auto;">${error.stack}</pre>
+                        </div>
+                    `;
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            }, 200);
+        }
+        
+        function runStandardGAComparison() {
+            alert('Standard GA comparison will be implemented in the next version. For now, run SSGA optimization to see the multibeam patterns.');
+        }
+        
+        function clearAll() {
+            viz.clearAll();
+        }
+        
+        console.log("✅ JCAS Steady-State GA Multibeam Visualization loaded!");
+        console.log("👉 Click 'Run Steady-State GA' to start optimization");
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JCAS Steady-State GA - Multibeam Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            padding: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 32px;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        button {
+            padding: 14px 28px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        #vizContainer {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            border-radius: 12px;
+        }
+        
+        canvas {
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin: 40px 0;
+            padding: 25px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            border-left: 5px solid #667eea;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 26px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        .info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .info p {
+            margin: 8px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .info strong {
+            color: #667eea;
+        }
+        
+        #loading {
+            text-align: center;
+            padding: 60px;
+            font-size: 20px;
+            color: #667eea;
+            display: none;
+            background: white;
+            border-radius: 12px;
+            margin: 20px auto;
+            max-width: 600px;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card .label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .value {
+            color: #667eea;
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1> JCAS Steady-State GA - Multibeam Optimization Dashboard</h1>
+    
+    <div class="controls">
+        <button onclick="runSSGAOptimization()"> Run Steady-State GA</button>
+        <button onclick="runStandardGAComparison()" class="secondary"> Compare with Standard GA</button>
+        <button onclick="clearAll()"> Clear All</button>
+    </div>
+    
+    <div id="loading">
+        <div class="spinner"></div>
+        <p><strong>Running Steady-State Genetic Algorithm...</strong></p>
+        <p>Optimizing multibeam patterns for JCAS system</p>
+    </div>
+    
+    <div id="vizContainer">
+        <p style="text-align: center; color: #999; padding: 50px;">
+            Click "Run Steady-State GA" to start optimization and generate visualizations
+        </p>
+    </div>
+
+    <script>
+        // ============= COMPLEX NUMBER CLASS =============
+        class Complex {
+            constructor(real, imag = 0) {
+                this.real = real;
+                this.imag = imag;
+            }
+            
+            add(c) {
+                return new Complex(this.real + c.real, this.imag + c.imag);
+            }
+            
+            multiply(c) {
+                return new Complex(
+                    this.real * c.real - this.imag * c.imag,
+                    this.real * c.imag + this.imag * c.real
+                );
+            }
+            
+            conjugate() {
+                return new Complex(this.real, -this.imag);
+            }
+            
+            magnitude() {
+                return Math.sqrt(this.real * this.real + this.imag * this.imag);
+            }
+            
+            phase() {
+                return Math.atan2(this.imag, this.real);
+            }
+            
+            static fromPolar(magnitude, phase) {
+                return new Complex(
+                    magnitude * Math.cos(phase),
+                    magnitude * Math.sin(phase)
+                );
+            }
+        }
+
+        // ============= STEADY-STATE GA FOR JCAS =============
+        class JCASMultibeamSSGA {
+            constructor(config) {
+                this.M = config.M || 16;
+                this.fc = config.fc || 24e9;
+                this.lambda = 3e8 / this.fc;
+                
+                this.commDirection = config.commDirection || 0;
+                this.sensingDirections = config.sensingDirections || 
+                    [-54.3, -37.8, -24.4, -12.3, 10.8, 22.8, 35.9, 51.9];
+                this.rho = config.rho || 0.5;
+                
+                // SSGA parameters
+                this.populationSize = config.populationSize || 80;
+                this.maxEvaluations = config.maxEvaluations || 8000;
+                this.offspringSize = config.offspringSize || 2;
+                this.mutationRate = config.mutationRate || 0.12;
+                this.crossoverRate = config.crossoverRate || 0.85;
+                this.tournamentSize = config.tournamentSize || 3;
+                
+                this.K = 361; // -180 to 180 degrees
+                this.angles = this.generateAngles();
+                
+                this.evaluationCount = 0;
+                this.fitnessHistory = [];
+                this.diversityHistory = [];
+            }
+            
+            generateAngles() {
+                const angles = [];
+                for (let i = 0; i < this.K; i++) {
+                    angles.push(-180 + i);
+                }
+                return angles;
+            }
+            
+            arrayResponse(theta) {
+                const a = [];
+                const thetaRad = theta * Math.PI / 180;
+                for (let m = 0; m < this.M; m++) {
+                    const phase = Math.PI * m * Math.sin(thetaRad);
+                    a.push(Complex.fromPolar(1, phase));
+                }
+                return a;
+            }
+            
+            createIndividual() {
+                return {
+                    commWeights: this.randomWeights(),
+                    sensingWeights: this.randomWeights(),
+                    fitness: null,
+                    age: 0
+                };
+            }
+            
+            randomWeights() {
+                const weights = [];
+                for (let m = 0; m < this.M; m++) {
+                    const magnitude = 0.7 + Math.random() * 0.6;
+                    const phase = Math.random() * 2 * Math.PI;
+                    weights.push(Complex.fromPolar(magnitude, phase));
+                }
+                return this.normalizeWeights(weights);
+            }
+            
+            normalizeWeights(weights) {
+                let sumPower = 0;
+                for (let w of weights) {
+                    sumPower += w.magnitude() * w.magnitude();
+                }
+                const norm = Math.sqrt(sumPower);
+                return weights.map(w => new Complex(w.real / norm, w.imag / norm));
+            }
+            
+            fitness(individual, sensingAngle) {
+                if (individual.fitness !== null) {
+                    return individual.fitness;
+                }
+                
+                this.evaluationCount++;
+                
+                let totalError = 0;
+                let commGain = 0;
+                let sensingGain = 0;
+                
+                // Sample key angles for fitness evaluation
+                const sampleAngles = [];
+                for (let angle = -90; angle <= 90; angle += 3) {
+                    sampleAngles.push(angle);
+                }
+                
+                for (let angle of sampleAngles) {
+                    const a = this.arrayResponse(angle);
+                    
+                    let commResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        commResponse = commResponse.add(
+                            a[m].multiply(individual.commWeights[m].conjugate())
+                        );
+                    }
+                    
+                    let sensingResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        sensingResponse = sensingResponse.add(
+                            a[m].multiply(individual.sensingWeights[m].conjugate())
+                        );
+                    }
+                    
+                    // Desired response
+                    let commDesired = 0;
+                    let sensingDesired = 0;
+                    
+                    if (Math.abs(angle - this.commDirection) < 15) {
+                        commDesired = 1.0;
+                    }
+                    if (Math.abs(angle - sensingAngle) < 15) {
+                        sensingDesired = 1.0;
+                    }
+                    
+                    // Track gains at target directions
+                    if (Math.abs(angle - this.commDirection) < 2) {
+                        commGain = commResponse.magnitude();
+                    }
+                    if (Math.abs(angle - sensingAngle) < 2) {
+                        sensingGain = sensingResponse.magnitude();
+                    }
+                    
+                    // Combined response
+                    const combined = new Complex(
+                        Math.sqrt(this.rho) * commResponse.real + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.real,
+                        Math.sqrt(this.rho) * commResponse.imag + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.imag
+                    );
+                    
+                    const desired = Math.sqrt(this.rho) * commDesired + 
+                                   Math.sqrt(1 - this.rho) * sensingDesired;
+                    
+                    const error = combined.magnitude() - desired;
+                    totalError += error * error;
+                }
+                
+                // Multi-objective fitness
+                const mse = totalError / sampleAngles.length;
+                const fitnessValue = -mse + 5 * (commGain + sensingGain);
+                
+                individual.fitness = fitnessValue;
+                return fitnessValue;
+            }
+            
+            tournamentSelection(population, fitnesses) {
+                let best = null;
+                let bestFitness = -Infinity;
+                
+                for (let i = 0; i < this.tournamentSize; i++) {
+                    const idx = Math.floor(Math.random() * population.length);
+                    if (fitnesses[idx] > bestFitness) {
+                        bestFitness = fitnesses[idx];
+                        best = idx;
+                    }
+                }
+                
+                return population[best];
+            }
+            
+            crossover(parent1, parent2) {
+                if (Math.random() > this.crossoverRate) {
+                    return [this.cloneIndividual(parent1), this.cloneIndividual(parent2)];
+                }
+                
+                const child1 = this.createIndividual();
+                const child2 = this.createIndividual();
+                
+                child1.commWeights = [];
+                child1.sensingWeights = [];
+                child2.commWeights = [];
+                child2.sensingWeights = [];
+                
+                // Uniform crossover
+                for (let m = 0; m < this.M; m++) {
+                    if (Math.random() < 0.5) {
+                        child1.commWeights.push(new Complex(parent1.commWeights[m].real, parent1.commWeights[m].imag));
+                        child2.commWeights.push(new Complex(parent2.commWeights[m].real, parent2.commWeights[m].imag));
+                    } else {
+                        child1.commWeights.push(new Complex(parent2.commWeights[m].real, parent2.commWeights[m].imag));
+                        child2.commWeights.push(new Complex(parent1.commWeights[m].real, parent1.commWeights[m].imag));
+                    }
+                    
+                    if (Math.random() < 0.5) {
+                        child1.sensingWeights.push(new Complex(parent1.sensingWeights[m].real, parent1.sensingWeights[m].imag));
+                        child2.sensingWeights.push(new Complex(parent2.sensingWeights[m].real, parent2.sensingWeights[m].imag));
+                    } else {
+                        child1.sensingWeights.push(new Complex(parent2.sensingWeights[m].real, parent2.sensingWeights[m].imag));
+                        child2.sensingWeights.push(new Complex(parent1.sensingWeights[m].real, parent1.sensingWeights[m].imag));
+                    }
+                }
+                
+                child1.commWeights = this.normalizeWeights(child1.commWeights);
+                child1.sensingWeights = this.normalizeWeights(child1.sensingWeights);
+                child2.commWeights = this.normalizeWeights(child2.commWeights);
+                child2.sensingWeights = this.normalizeWeights(child2.sensingWeights);
+                
+                return [child1, child2];
+            }
+            
+            mutate(individual) {
+                const mutated = this.cloneIndividual(individual);
+                
+                for (let m = 0; m < this.M; m++) {
+                    if (Math.random() < this.mutationRate) {
+                        const sigma = 0.15;
+                        const deltaMag = this.gaussianRandom(0, sigma);
+                        const deltaPhase = this.gaussianRandom(0, Math.PI / 4);
+                        
+                        const oldMag = mutated.commWeights[m].magnitude();
+                        const oldPhase = mutated.commWeights[m].phase();
+                        
+                        mutated.commWeights[m] = Complex.fromPolar(
+                            Math.max(0.1, Math.min(2, oldMag + deltaMag)),
+                            oldPhase + deltaPhase
+                        );
+                    }
+                    
+                    if (Math.random() < this.mutationRate) {
+                        const sigma = 0.15;
+                        const deltaMag = this.gaussianRandom(0, sigma);
+                        const deltaPhase = this.gaussianRandom(0, Math.PI / 4);
+                        
+                        const oldMag = mutated.sensingWeights[m].magnitude();
+                        const oldPhase = mutated.sensingWeights[m].phase();
+                        
+                        mutated.sensingWeights[m] = Complex.fromPolar(
+                            Math.max(0.1, Math.min(2, oldMag + deltaMag)),
+                            oldPhase + deltaPhase
+                        );
+                    }
+                }
+                
+                mutated.commWeights = this.normalizeWeights(mutated.commWeights);
+                mutated.sensingWeights = this.normalizeWeights(mutated.sensingWeights);
+                mutated.fitness = null;
+                
+                return mutated;
+            }
+            
+            gaussianRandom(mean = 0, stdDev = 1) {
+                const u1 = Math.random();
+                const u2 = Math.random();
+                const z0 = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+                return mean + stdDev * z0;
+            }
+            
+            cloneIndividual(individual) {
+                return {
+                    commWeights: individual.commWeights.map(w => new Complex(w.real, w.imag)),
+                    sensingWeights: individual.sensingWeights.map(w => new Complex(w.real, w.imag)),
+                    fitness: individual.fitness,
+                    age: individual.age
+                };
+            }
+            
+            calculateDiversity(population) {
+                let totalDistance = 0;
+                let count = 0;
+                
+                const sampleSize = Math.min(20, population.length);
+                
+                for (let i = 0; i < sampleSize; i++) {
+                    for (let j = i + 1; j < sampleSize; j++) {
+                        let distance = 0;
+                        
+                        for (let m = 0; m < this.M; m++) {
+                            const diff1 = population[i].commWeights[m].magnitude() - 
+                                         population[j].commWeights[m].magnitude();
+                            const diff2 = population[i].sensingWeights[m].magnitude() - 
+                                         population[j].sensingWeights[m].magnitude();
+                            distance += diff1 * diff1 + diff2 * diff2;
+                        }
+                        
+                        totalDistance += Math.sqrt(distance);
+                        count++;
+                    }
+                }
+                
+                return count > 0 ? totalDistance / count : 0;
+            }
+            
+            replaceWorst(population, fitnesses, offspring) {
+                const sortedIndices = fitnesses
+                    .map((fitness, idx) => ({fitness, idx}))
+                    .sort((a, b) => a.fitness - b.fitness);
+                
+                for (let i = 0; i < offspring.length && i < sortedIndices.length; i++) {
+                    population[sortedIndices[i].idx] = offspring[i];
+                    fitnesses[sortedIndices[i].idx] = null;
+                }
+            }
+            
+            optimize(sensingAngle, progressCallback = null) {
+                console.log(`Starting SSGA optimization for sensing angle: ${sensingAngle}°`);
+                
+                let population = [];
+                for (let i = 0; i < this.populationSize; i++) {
+                    population.push(this.createIndividual());
+                }
+                
+                let fitnesses = new Array(this.populationSize).fill(null);
+                
+                // Evaluate initial population
+                for (let i = 0; i < this.populationSize; i++) {
+                    fitnesses[i] = this.fitness(population[i], sensingAngle);
+                }
+                
+                let bestIndividual = null;
+                let bestFitness = -Infinity;
+                let generation = 0;
+                
+                // Find initial best
+                for (let i = 0; i < population.length; i++) {
+                    if (fitnesses[i] > bestFitness) {
+                        bestFitness = fitnesses[i];
+                        bestIndividual = this.cloneIndividual(population[i]);
+                    }
+                }
+                
+                // SSGA main loop
+                while (this.evaluationCount < this.maxEvaluations) {
+                    generation++;
+                    
+                    // Generate offspring
+                    const offspring = [];
+                    for (let i = 0; i < this.offspringSize / 2; i++) {
+                        const parent1 = this.tournamentSelection(population, fitnesses);
+                        const parent2 = this.tournamentSelection(population, fitnesses);
+                        
+                        const [child1, child2] = this.crossover(parent1, parent2);
+                        
+                        offspring.push(this.mutate(child1));
+                        if (offspring.length < this.offspringSize) {
+                            offspring.push(this.mutate(child2));
+                        }
+                    }
+                    
+                    // Evaluate offspring
+                    for (let child of offspring) {
+                        this.fitness(child, sensingAngle);
+                    }
+                    
+                    // Replace worst
+                    this.replaceWorst(population, fitnesses, offspring);
+                    
+                    // Re-evaluate
+                    for (let i = 0; i < population.length; i++) {
+                        if (fitnesses[i] === null) {
+                            fitnesses[i] = this.fitness(population[i], sensingAngle);
+                        }
+                    }
+                    
+                    // Update age
+                    for (let ind of population) {
+                        ind.age++;
+                    }
+                    
+                    // Track best
+                    const currentBestFitness = Math.max(...fitnesses);
+                    const currentBestIdx = fitnesses.indexOf(currentBestFitness);
+                    
+                    if (currentBestFitness > bestFitness) {
+                        bestFitness = currentBestFitness;
+                        bestIndividual = this.cloneIndividual(population[currentBestIdx]);
+                    }
+                    
+                    // Statistics
+                    if (generation % 50 === 0) {
+                        const avgFitness = fitnesses.reduce((a, b) => a + b) / fitnesses.length;
+                        const diversity = this.calculateDiversity(population);
+                        
+                        this.fitnessHistory.push({
+                            generation,
+                            evaluations: this.evaluationCount,
+                            best: bestFitness,
+                            avg: avgFitness,
+                            diversity
+                        });
+                        
+                        if (progressCallback) {
+                            progressCallback({
+                                generation,
+                                evaluations: this.evaluationCount,
+                                bestFitness,
+                                avgFitness,
+                                diversity
+                            });
+                        }
+                    }
+                }
+                
+                return {
+                    individual: bestIndividual,
+                    fitness: bestFitness,
+                    statistics: {
+                        generations: generation,
+                        evaluations: this.evaluationCount,
+                        fitnessHistory: this.fitnessHistory
+                    }
+                };
+            }
+            
+            getMultibeamPattern(individual, sensingAngle) {
+                const pattern = [];
+                
+                for (let angle of this.angles) {
+                    const a = this.arrayResponse(angle);
+                    
+                    let commResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        commResponse = commResponse.add(
+                            a[m].multiply(individual.commWeights[m].conjugate())
+                        );
+                    }
+                    
+                    let sensingResponse = new Complex(0, 0);
+                    for (let m = 0; m < this.M; m++) {
+                        sensingResponse = sensingResponse.add(
+                            a[m].multiply(individual.sensingWeights[m].conjugate())
+                        );
+                    }
+                    
+                    const combined = new Complex(
+                        Math.sqrt(this.rho) * commResponse.real + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.real,
+                        Math.sqrt(this.rho) * commResponse.imag + 
+                        Math.sqrt(1 - this.rho) * sensingResponse.imag
+                    );
+                    
+                    pattern.push({
+                        angle: angle,
+                        magnitude: combined.magnitude(),
+                        magnitudeDB: 20 * Math.log10(combined.magnitude() + 1e-10)
+                    });
+                }
+                
+                return pattern;
+            }
+            
+            optimizeAllSensingDirections(progressCallback = null) {
+                const results = [];
+                
+                for (let i = 0; i < this.sensingDirections.length; i++) {
+                    const sensingAngle = this.sensingDirections[i];
+                    
+                    // Reset for each direction
+                    this.evaluationCount = 0;
+                    this.fitnessHistory = [];
+                    
+                    console.log(`\nOptimizing ${i + 1}/${this.sensingDirections.length}: Sensing angle ${sensingAngle}°`);
+                    
+                    const result = this.optimize(sensingAngle, (progress) => {
+                        if (progressCallback) {
+                            progressCallback({
+                                ...progress,
+                                currentDirection: i + 1,
+                                totalDirections: this.sensingDirections.length,
+                                sensingAngle
+                            });
+                        }
+                    });
+                    
+                    const pattern = this.getMultibeamPattern(result.individual, sensingAngle);
+                    
+                    results.push({
+                        sensingAngle,
+                        individual: result.individual,
+                        pattern,
+                        fitness: result.fitness,
+                        statistics: result.statistics
+                    });
+                }
+                
+                return results;
+            }
+        }
+
+        // ============= VISUALIZATION CLASS =============
+        class SSGAVisualization {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+            }
+
+            createStatsCards(results) {
+                const section = document.createElement('div');
+                section.className = 'section';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = '📊 Optimization Statistics';
+                section.appendChild(heading);
+                
+                const statsGrid = document.createElement('div');
+                statsGrid.className = 'stats-grid';
+                
+                // Calculate aggregate stats
+                const totalEvals = results.reduce((sum, r) => sum + r.statistics.evaluations, 0);
+                const avgFitness = results.reduce((sum, r) => sum + r.fitness, 0) / results.length;
+                const bestFitness = Math.max(...results.map(r => r.fitness));
+                
+                const stats = [
+                    { label: 'Total Evaluations', value: totalEvals.toLocaleString() },
+                    { label: 'Avg Best Fitness', value: avgFitness.toFixed(3) },
+                    { label: 'Best Fitness', value: bestFitness.toFixed(3) },
+                    { label: 'Sensing Directions', value: results.length }
+                ];
+                
+                stats.forEach(stat => {
+                    const card = document.createElement('div');
+                    card.className = 'stat-card';
+                    card.innerHTML = `
+                        <div class="label">${stat.label}</div>
+                        <div class="value">${stat.value}</div>
+                    `;
+                    statsGrid.appendChild(card);
+                });
+                
+                section.appendChild(statsGrid);
+                this.container.appendChild(section);
+            }
+
+            createMultibeamComparisonPlot(results) {
+                const section = document.createElement('div');
+                section.className = 'section';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = '📡 Eight Combined Multibeam Patterns (Steady-State GA)';
+                section.appendChild(heading);
+                
+                const info = document.createElement('div');
+                info.className = 'info';
+                info.innerHTML = `
+                    <p><strong>Algorithm:</strong> Steady-State Genetic Algorithm</p>
+                    <p><strong>Communication Direction:</strong> 0°</p>
+                    <p><strong>Sensing Directions:</strong> ${results.map(r => r.sensingAngle + '°').join(', ')}</p>
+                    <p><strong>Power Allocation (ρ):</strong> 0.5 (50% communication, 50% sensing)</p>
+                    <p><strong>Array Configuration:</strong> 16-element ULA, λ/2 spacing</p>
+                `;
+                section.appendChild(info);
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 1000;
+                canvas.height = 500;
+                section.appendChild(canvas);
+                
+                this.container.appendChild(section);
+
+                const ctx = canvas.getContext('2d');
+                const padding = 70;
+                const plotWidth = canvas.width - 2 * padding;
+                const plotHeight = canvas.height - 2 * padding;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw axes
+                this.drawCartesianAxes(ctx, padding, plotWidth, plotHeight, 
+                    -90, 90, -35, 10);
+
+                // Colors
+                const colors = [
+                    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+                    '#9467bd', '#8c564b', '#e377c2', '#bcbd22'
+                ];
+
+                // Draw all patterns
+                results.forEach((result, idx) => {
+                    this.plotMultibeamPattern(
+                        ctx, padding, plotWidth, plotHeight,
+                        result.pattern, 
+                        colors[idx % colors.length],
+                        2.5
+                    );
+                    
+                    this.markSensingDirection(
+                        ctx, padding, plotWidth, plotHeight,
+                        result.sensingAngle, result.pattern
+                    );
+                });
+
+                // Title
+                ctx.font = 'bold 18px Arial';
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.fillText('Optimized Multibeam Radiation Patterns', canvas.width / 2, 35);
+
+                // Axis labels
+                ctx.font = '14px Arial';
+                ctx.fillText('Scan direction in Degrees', canvas.width / 2, canvas.height - 20);
+                
+                ctx.save();
+                ctx.translate(25, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('Beam gain (dB)', 0, 0);
+                ctx.restore();
+
+                // Legend
+                this.drawLegend(ctx, canvas.width - 200, 70, results, colors);
+            }
+
+            plotMultibeamPattern(ctx, padding, width, height, pattern, color, lineWidth) {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+
+                const filteredPattern = pattern.filter(p => p.angle >= -90 && p.angle <= 90);
+
+                filteredPattern.forEach((point, idx) => {
+                    const x = padding + ((point.angle + 90) / 180) * width;
+                    const y = padding + height - ((point.magnitudeDB + 35) / 45) * height;
+
+                    if (idx === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+            }
+
+            markSensingDirection(ctx, padding, width, height, sensingAngle, pattern) {
+                const point = pattern.find(p => Math.abs(p.angle - sensingAngle) < 0.5);
+                if (!point) return;
+
+                const x = padding + ((sensingAngle + 90) / 180) * width;
+                const y = padding + height - ((point.magnitudeDB + 35) / 45) * height;
+
+                ctx.strokeStyle = '#d62728';
+                ctx.fillStyle = 'rgba(214, 39, 40, 0.3)';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(x, y, 7, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            drawCartesianAxes(ctx, padding, width, height, xMin, xMax, yMin, yMax) {
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(padding, padding, width, height);
+
+                ctx.strokeStyle = '#ddd';
+                ctx.lineWidth = 1;
+
+                for (let x = xMin; x <= xMax; x += 30) {
+                    const px = padding + ((x - xMin) / (xMax - xMin)) * width;
+                    ctx.beginPath();
+                    ctx.moveTo(px, padding);
+                    ctx.lineTo(px, padding + height);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#333';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(x.toString(), px, padding + height + 20);
+                }
+
+                for (let y = yMin; y <= yMax; y += 10) {
+                    const py = padding + height - ((y - yMin) / (yMax - yMin)) * height;
+                    ctx.beginPath();
+                    ctx.moveTo(padding, py);
+                    ctx.lineTo(padding + width, py);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#333';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'right';
+                    ctx.fillText(y.toString(), padding - 10, py + 4);
+                }
+            }
+
+            drawLegend(ctx, x, y, results, colors) {
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'left';
+
+                // Background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(x - 10, y - 10, 180, results.length * 22 + 20);
+                ctx.strokeStyle = '#ccc';
+                ctx.strokeRect(x - 10, y - 10, 180, results.length * 22 + 20);
+
+                results.forEach((result, idx) => {
+                    const yPos = y + idx * 22;
+
+                    ctx.strokeStyle = colors[idx % colors.length];
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(x, yPos);
+                    ctx.lineTo(x + 25, yPos);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#333';
+                    ctx.fillText(`θ = ${result.sensingAngle}° (f=${result.fitness.toFixed(2)})`, x + 30, yPos + 4);
+                });
+            }
+
+            createConvergencePlot(results) {
+                const section = document.createElement('div');
+                section.className = 'section';
+                
+                const heading = document.createElement('h2');
+                heading.textContent = '📈 Convergence Curves - All Sensing Directions';
+                section.appendChild(heading);
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = 1000;
+                canvas.height = 500;
+                section.appendChild(canvas);
+                
+                this.container.appendChild(section);
+
+                const ctx = canvas.getContext('2d');
+                const padding = 70;
+                const plotWidth = canvas.width - 2 * padding;
+                const plotHeight = canvas.height - 2 * padding;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Find ranges
+                const allFitness = results.flatMap(r => 
+                    r.statistics.fitnessHistory.map(h => h.best)
+                );
+                const maxFit = Math.max(...allFitness);
+                const minFit = Math.min(...allFitness);
+                const maxEval = Math.max(...results.map(r => 
+                    Math.max(...r.statistics.fitnessHistory.map(h => h.evaluations))
+                ));
+
+                // Draw axes
+                this.drawCartesianAxes(ctx, padding, plotWidth, plotHeight, 
+                    0, maxEval, Math.floor(minFit), Math.ceil(maxFit));
+
+                // Colors
+                const colors = [
+                    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+                    '#9467bd', '#8c564b', '#e377c2', '#bcbd22'
+                ];
+
+                // Plot convergence for each direction
+                results.forEach((result, idx) => {
+                    const history = result.statistics.fitnessHistory;
+                    const evaluations = history.map(h => h.evaluations);
+                    const bestFitness = history.map(h => h.best);
+
+                    this.plotLine(ctx, padding, plotWidth, plotHeight,
+                        evaluations, bestFitness, maxEval, minFit, maxFit,
+                        colors[idx % colors.length], 2);
+                });
+
+                // Title
+                ctx.font = 'bold 18px Arial';
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.fillText('SSGA Convergence - Best Fitness vs Evaluations', canvas.width / 2, 35);
+
+                // Axis labels
+                ctx.font = '14px Arial';
+                ctx.fillText('Function Evaluations', canvas.width / 2, canvas.height - 20);
+                
+                ctx.save();
+                ctx.translate(25, canvas.height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillText('Best Fitness', 0, 0);
+                ctx.restore();
+            }
+
+            plotLine(ctx, padding, width, height, xData, yData, maxX, minY, maxY, color, lineWidth) {
+                ctx.beginPath();
+                ctx.strokeStyle = color;
+                ctx.lineWidth = lineWidth;
+
+                xData.forEach((x, idx) => {
+                    const px = padding + (x / maxX) * width;
+                    const py = padding + height - ((yData[idx] - minY) / (maxY - minY)) * height;
+
+                    if (idx === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                });
+                ctx.stroke();
+            }
+
+            clearAll() {
+                this.container.innerHTML = '<p style="text-align: center; color: #999; padding: 50px;">Click "Run Steady-State GA" to start optimization</p>';
+            }
+        }
+
+        // ============= MAIN EXECUTION =============
+        
+        const viz = new SSGAVisualization('vizContainer');
+        
+        function runSSGAOptimization() {
+            document.getElementById('loading').style.display = 'block';
+            viz.clearAll();
+            
+            setTimeout(() => {
+                try {
+                    console.log("Starting SSGA Multibeam Optimization...");
+                    
+                    const config = {
+                        M: 16,
+                        fc: 24e9,
+                        commDirection: 0,
+                        sensingDirections: [-54.3, -37.8, -24.4, -12.3, 10.8, 22.8, 35.9, 51.9],
+                        rho: 0.5,
+                        populationSize: 80,
+                        maxEvaluations: 8000,
+                        offspringSize: 2,
+                        mutationRate: 0.12,
+                        crossoverRate: 0.85
+                    };
+                    
+                    const optimizer = new JCASMultibeamSSGA(config);
+                    
+                    const results = optimizer.optimizeAllSensingDirections((progress) => {
+                        console.log(`Direction ${progress.currentDirection}/${progress.totalDirections} | ` +
+                                   `Gen ${progress.generation} | Evals ${progress.evaluations} | ` +
+                                   `Best: ${progress.bestFitness.toFixed(4)}`);
+                    });
+                    
+                    console.log("\n✅ Optimization complete! Generating visualizations...");
+                    
+                    // Create visualizations
+                    viz.createStatsCards(results);
+                    viz.createMultibeamComparisonPlot(results);
+                    viz.createConvergencePlot(results);
+                    
+                    console.log("✅ All visualizations generated successfully!");
+                    
+                } catch (error) {
+                    console.error("Error:", error);
+                    viz.container.innerHTML = `
+                        <div style="color: red; padding: 40px; text-align: center;">
+                            <h3> Error occurred</h3>
+                            <p>${error.message}</p>
+                            <pre style="text-align: left; background: #f5f5f5; padding: 15px; border-radius: 4px; overflow: auto;">${error.stack}</pre>
+                        </div>
+                    `;
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            }, 200);
+        }
+        
+        function runStandardGAComparison() {
+            alert('Standard GA comparison will be implemented in the next version. For now, run SSGA optimization to see the multibeam patterns.');
+        }
+        
+        function clearAll() {
+            viz.clearAll();
+        }
+        
+        console.log(" JCAS Steady-State GA Multibeam Visualization loaded!");
+        console.log(" Click 'Run Steady-State GA' to start optimization");
+    </script>
+</body>
+</html>
